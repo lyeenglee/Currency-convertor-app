@@ -1,5 +1,5 @@
 import { CheckedRate, CurrencyRate } from "@/app/(tabs)/HomeScreen";
-import { Ionicons } from "@expo/vector-icons";
+import { mapCurrencyToCountry } from "@/utils/currencyMapper";
 import {
   FlatList,
   Modal,
@@ -12,6 +12,7 @@ import {
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
+import PrimaryBtn from "../buttons/PrimaryBtn";
 import RateItem from "../lists/RateItem";
 
 type ModalProps = {
@@ -19,14 +20,12 @@ type ModalProps = {
   data: CurrencyRate[];
   checkedList: CheckedRate[];
   setIsFocus: React.Dispatch<React.SetStateAction<boolean>>;
-  setNewRate: React.Dispatch<React.SetStateAction<string>>;
   setCheckedList: React.Dispatch<React.SetStateAction<CheckedRate[]>>;
 };
 
 export default function BottomModal({
   isFocus,
   setIsFocus,
-  setNewRate,
   data,
   checkedList,
   setCheckedList,
@@ -76,9 +75,12 @@ export default function BottomModal({
               </Text>
             </View>
 
-            <Pressable onPress={() => setIsFocus(false)}>
-              <Ionicons name="close-outline" size={25} color={"black"} />
-            </Pressable>
+            <PrimaryBtn
+              iconName="close-outline"
+              iconColor="black"
+              iconSize={25}
+              onPress={() => setIsFocus(false)}
+            />
           </View>
           <View>
             <FlatList
@@ -87,15 +89,19 @@ export default function BottomModal({
                 const isChecked = checkedList.some(
                   (checked) => item.currency === checked.currency
                 );
+
+                const selected =
+                  mapCurrencyToCountry.find(
+                    (itm) => itm.currency === item.currency
+                  )?.country || "";
+
                 return (
                   <RateItem
                     currency={item.currency}
                     rate={item.rate}
-                    setNewRate={setNewRate}
-                    setIsFocus={setIsFocus}
                     onChange={() => onSelectCurrency(item.currency)}
-                    // onChange={(v) => toggleAt(index, v)}
                     isChecked={isChecked}
+                    selected={selected}
                   />
                 );
               }}

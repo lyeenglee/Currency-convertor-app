@@ -1,3 +1,4 @@
+import getUnicodeFlagIcon from "country-flag-icons/unicode";
 import { Checkbox } from "expo-checkbox";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -5,8 +6,7 @@ type ItemProps = {
   currency: string;
   rate: number;
   isChecked: boolean;
-  setNewRate: React.Dispatch<React.SetStateAction<string>>;
-  setIsFocus: React.Dispatch<React.SetStateAction<boolean>>;
+  selected: string;
   onChange: (val: string) => void;
 };
 
@@ -14,19 +14,23 @@ export default function RateItem({
   currency,
   rate,
   isChecked,
-  setNewRate,
-  setIsFocus,
+  selected,
   onChange,
 }: ItemProps) {
   return (
     <Pressable onPress={() => onChange(currency)}>
       <View style={styles.dropDownItem}>
-        <View style={{ flexDirection: "row", gap: 10 }}>
-          <Checkbox value={isChecked} />
+        <View style={styles.leftItem}>
+          <Checkbox
+            value={isChecked}
+            onValueChange={() => onChange(currency)}
+          />
+
+          <Text style={styles.title}>{getUnicodeFlagIcon(selected)}</Text>
           <Text style={styles.title}>{currency}</Text>
         </View>
 
-        <Text>{rate}</Text>
+        <Text style={styles.title}>{rate}</Text>
       </View>
     </Pressable>
   );
@@ -43,5 +47,9 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 16,
+  },
+  leftItem: {
+    flexDirection: "row",
+    gap: 10,
   },
 });

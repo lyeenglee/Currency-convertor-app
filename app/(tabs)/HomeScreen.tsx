@@ -1,11 +1,18 @@
+import PrimaryBtn from "@/components/buttons/PrimaryBtn";
+import Divider from "@/components/common/Divider";
 import BottomModal from "@/components/modals/BottomModal";
-import { Ionicons } from "@expo/vector-icons";
+import { getAllRating } from "@/services/currencyService";
+import { mapCurrencyToCountry } from "@/utils/currencyMapper";
+import getUnicodeFlagIcon from "country-flag-icons/unicode";
+import getSymbolFromCurrency from "currency-symbol-map";
 import { useEffect, useState } from "react";
 import {
   Dimensions,
   FlatList,
   Image,
+  Keyboard,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -25,63 +32,43 @@ export type CheckedRate = {
 export default function HomeScreen() {
   const token = process.env.EXPO_PUBLIC_EXCHANGERATE_TOKEN;
   const screenHeight = Dimensions.get("window").height;
-  console.log("screenHeight: ", screenHeight);
+
   const [isFocus, setIsFocus] = useState<boolean>(false);
   const [newRate, setNewRate] = useState<string>("");
   const [currencyList, setCurrencyList] = useState<CurrencyRate[]>([]);
   const [convertedList, setConvertedList] = useState<CurrencyRate[]>([]);
   const [checkedList, setCheckedList] = useState<CheckedRate[]>([]);
   const [amt, setAmt] = useState<string>("");
-  // const [convertedAmt, setConvertedAmt] = useState<string>("");
   const [lastUpdated, setLastUpdated] = useState<string>("");
+
+  const fetchCurrencyRates = async () => {
+    const res = await getAllRating();
+    if (res) {
+      const { filteredCurrencyList, formattedLastUpdated } = res;
+      setCurrencyList(filteredCurrencyList);
+      setLastUpdated(formattedLastUpdated);
+    }
+  };
 
   useEffect(() => {
     handleNewRate(amt);
   }, [amt, checkedList]);
 
   useEffect(() => {
-    getAllRating();
+    fetchCurrencyRates();
   }, []);
 
-  const getAllRating = async () => {
-    console.log(1, token);
-    let url = `https://v6.exchangerate-api.com/v6/${token}/latest/MYR`; //TODO: restructure to access token
-    try {
-      const response = await fetch(url, { method: "GET" });
-
-      if (!response.ok) {
-        throw new Error("Error fetching api");
-      }
-      const { conversion_rates, time_last_update_utc } = await response.json();
-
-      const formattedCurrencyList: CurrencyRate[] = Object.entries(
-        conversion_rates
-      ).map(([currency, rate]) => ({
-        currency,
-        rate: Number(rate),
-      }));
-
-      setCurrencyList(
-        formattedCurrencyList.filter((itm) => itm.currency !== "MYR")
-      );
-      const formattedLastUpdated = new Date(time_last_update_utc).toUTCString();
-      setLastUpdated(formattedLastUpdated);
-    } catch (error) {
-      console.log("error");
-    }
-  };
-
   const handleNewRate = (amt: string) => {
-    if (checkedList.length > 0) {
-      const selectedCurrencyList = currencyList.filter((itm) =>
+    if (checkedList?.length > 0) {
+      const selectedCurrencyList = currencyList?.filter((itm) =>
         checkedList.some((checked) => checked.currency === itm.currency)
       );
 
-      const newConvertedlist = selectedCurrencyList.map((itm) => ({
+      const newConvertedlist = selectedCurrencyList?.map((itm) => ({
         ...itm,
         rate: Number(itm.rate * Number(amt)),
       }));
-      console.log("newConvertedlist: ", newConvertedlist);
+
       setConvertedList(newConvertedlist);
     } else {
       setConvertedList([]);
@@ -90,176 +77,197 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1 }}>
-      <View style={styles.cardContainer}>
-        <View style={styles.titleContainer}>
-          <Text style={styles.titleText}>Currency Convertor</Text>
-
-          {amt && (
-            <Pressable
-              style={[styles.resetBtn, { flexDirection: "row", gap: 3 }]}
-              onPress={() => {
-                setAmt("");
-
-                setCheckedList([]);
-                setConvertedList([]);
-              }}
-            >
-              <Ionicons name="refresh" size={18} color={"#FFF"} />
-              <Text style={styles.resetText}>Reset</Text>
-            </Pressable>
-          )}
-        </View>
-        <View style={styles.stepContainer}>
-          <View>
-            <Text style={styles.subtitleText}>From</Text>
-            <View style={styles.childContainer}>
-              <Text style={styles.currencyContainer} disabled>
-                MYR
-              </Text>
-
-              {/* TOdo: add focus effect */}
-              <TextInput
-                keyboardType="numeric"
-                onChangeText={(text) => {
-                  const isValid =
-                    /^(0(\.\d{0,4})?|[1-9]\d*(\.\d{0,4})?|(\.\d{0,4})?)?$/.test(
-                      text
-                    );
-
-                  if (!isValid || !isFinite(Number(text))) {
-                    return;
-                  }
-
-                  if (Number(text) == 0) {
-                    setConvertedList((prev) =>
-                      prev.map((item) => ({
-                        ...item,
-                        rate: 0,
-                      }))
-                    );
-                  }
-                  setAmt(text);
-                  if (Number(text) > 0) {
-                    handleNewRate(text);
-                  }
+      <Pressable onPress={() => Keyboard.dismiss()}>
+        <View style={styles.cardContainer}>
+          <View style={styles.titleContainer}>
+            <Text style={styles.titleText}>Currency Convertor</Text>
+            {amt && (
+              <PrimaryBtn
+                title="Reset"
+                iconName="refresh"
+                iconColor="#FFF"
+                iconSize={18}
+                onPress={() => {
+                  setAmt("");
+                  setCheckedList([]);
+                  setConvertedList([]);
                 }}
-                value={amt.toString() || ""}
-                placeholder="Enter Amount"
-                placeholderTextColor="rgba(3, 2, 19, 0.5)"
-                style={[styles.amtContainer]}
-              ></TextInput>
-            </View>
+                containerStyle={styles.resetBtn}
+                textStyle={styles.resetText}
+              />
+            )}
           </View>
+          <Divider />
+          <View style={styles.stepContainer}>
+            <View>
+              <Text style={styles.subtitleText}>From</Text>
+              <View style={styles.childContainer}>
+                <Text
+                  style={[styles.currencyContainer, styles.greyBg]}
+                  disabled
+                >
+                  MYR
+                </Text>
 
-          <Pressable
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 10,
-              borderColor: "#DCDCDC",
-              borderWidth: 1,
-              borderRadius: 8,
-              padding: 12,
-            }}
-            onPress={() => setIsFocus(!isFocus)}
-          >
-            {/* TODO: add hover effect */}
-            <Ionicons name="add" size={22} color={"black"} />
-            <Text style={[styles.currencyText, { textAlign: "center" }]}>
-              Add Currencies
-            </Text>
-          </Pressable>
-        </View>
-      </View>
+                {/* TOdo: add focus effect */}
+                <TextInput
+                  keyboardType="numeric"
+                  onChangeText={(text) => {
+                    const isValid =
+                      /^(0(\.\d{0,4})?|[1-9]\d*(\.\d{0,4})?|(\.\d{0,4})?)?$/.test(
+                        text
+                      );
 
-      <View style={[styles.cardContainer]}>
-        {checkedList?.length == 0 ? (
-          <View style={{ display: "flex", alignItems: "center", padding: 12 }}>
-            <Image
-              source={{
-                uri: "https://icons.veryicon.com/png/o/education-technology/blue-gray-solid-blend-icon/currency-14.png",
-              }}
-              style={{ width: 250, height: 250 }}
+                    if (!isValid || !isFinite(Number(text))) {
+                      return;
+                    }
+
+                    if (Number(text) == 0) {
+                      setConvertedList((prev) =>
+                        prev.map((item) => ({
+                          ...item,
+                          rate: 0,
+                        }))
+                      );
+                    }
+                    setAmt(text);
+                    if (Number(text) > 0) {
+                      handleNewRate(text);
+                    }
+                  }}
+                  value={amt.toString() || ""}
+                  placeholder="Enter Amount"
+                  placeholderTextColor="rgba(3, 2, 19, 0.5)"
+                  style={[styles.amtContainer, styles.greyBg]}
+                ></TextInput>
+              </View>
+            </View>
+
+            <PrimaryBtn
+              title="Add Currencies"
+              iconName="add"
+              iconColor="black"
+              iconSize={22}
+              onPress={() => setIsFocus(!isFocus)}
+              containerStyle={styles.secondaryBtn}
+              textStyle={[styles.currencyText, { textAlign: "center" }]}
             />
-            <Text style={[styles.titleText, { paddingTop: 12 }]}>
-              No currencies selected
-            </Text>
           </View>
-        ) : (
-          <Text style={styles.subtitleText}>Converted Amounts</Text>
-        )}
+        </View>
 
-        <FlatList
-          data={convertedList}
-          renderItem={({ item, index }) => (
-            <View style={styles.childContainer} key={index}>
-              <Pressable
-                style={[
-                  styles.currencyContainer,
-                  isFocus && styles.currencyContainerFocused,
-                ]}
-                onPress={() => setIsFocus(!isFocus)}
-              >
-                <Text style={styles.currencyText}>{item.currency}</Text>
-              </Pressable>
-
-              <TextInput
-                keyboardType="numeric"
-                value={
-                  item.rate === 0
-                    ? ""
-                    : item.currency === "JPY" || item.currency === "IDR"
-                    ? item.rate.toFixed(0)
-                    : item.rate.toFixed(4)
-                }
-                // onChangeText={(value) => {
-                //   const isValid =
-                //     /^(0(\.\d{0,4})?|[1-9]\d*(\.\d{0,4})?|(\.\d{0,4})?)?$/.test(
-                //       value
-                //     );
-
-                //   if (!isValid) {
-                //     window.alert("Special / invalid characters entered.");
-                //     setAmt("");
-                //     setConvertedAmt("");
-                //     return;
-                //   }
-                //   if (!isFinite(Number(value))) {
-                //     window.alert("Amount exceeds the supported limit.");
-                //     setAmt("");
-                //     setConvertedAmt("");
-                //     return;
-                //   }
-                //   if (Number(value) == 0) {
-                //     setAmt("");
-                //   }
-                //   setConvertedAmt(value);
-                //   handleNewBaseRate(value);
-                // }}
-                editable={false}
-                style={[styles.amtContainer, !newRate && styles.disableText]}
-              ></TextInput>
+        <View style={[styles.cardContainer]}>
+          {checkedList?.length == 0 ? (
+            <View style={styles.noResultContainer}>
+              <Image
+                source={{
+                  uri: "https://icons.veryicon.com/png/o/education-technology/blue-gray-solid-blend-icon/currency-14.png",
+                }}
+                style={{ width: 250, height: 250 }}
+              />
+              <Text style={{ paddingTop: 12, fontSize: 18 }}>
+                No currencies selected
+              </Text>
             </View>
+          ) : (
+            <>
+              <Text style={styles.subtitleText}>Converted Amounts</Text>
+              <Text style={[styles.subtitleText, { color: "grey" }]}>
+                {Number(amt).toLocaleString("en-US", {
+                  maximumFractionDigits: 0,
+                })}{" "}
+                MYR equals
+              </Text>
+            </>
           )}
-          keyExtractor={(item) => item.currency}
-          contentContainerStyle={{ marginBottom: 10 }}
-          style={{ maxHeight: screenHeight - 350 }}
-        />
 
-        {isFocus && (
-          <BottomModal
-            isFocus={isFocus}
-            setIsFocus={setIsFocus}
-            setNewRate={setNewRate}
-            data={currencyList}
-            checkedList={checkedList}
-            setCheckedList={setCheckedList}
+          <FlatList
+            bounces={false}
+            data={convertedList}
+            renderItem={({ item, index }) => {
+              const selected =
+                mapCurrencyToCountry.find(
+                  (itm) => itm.currency === item.currency
+                )?.country || "";
+              return (
+                <View style={{ paddingHorizontal: 10 }}>
+                  <View
+                    style={[
+                      styles.childContainer,
+                      styles.currencyItemContainer,
+                    ]}
+                    key={index}
+                  >
+                    <Pressable style={[styles.currencyContainer]}>
+                      <Text style={styles.currencyText}>
+                        {getUnicodeFlagIcon(selected)}
+                      </Text>
+
+                      <Text style={styles.currencyText}>{item.currency}</Text>
+                    </Pressable>
+
+                    <ScrollView
+                      showsHorizontalScrollIndicator={false}
+                      horizontal
+                      bounces={false}
+                    >
+                      <TextInput
+                        keyboardType="numeric"
+                        value={
+                          item.rate === 0
+                            ? ""
+                            : `${getSymbolFromCurrency(item.currency)} ${
+                                item.currency === "JPY" ||
+                                item.currency === "IDR"
+                                  ? item.rate.toLocaleString("en-US", {
+                                      maximumFractionDigits: 0,
+                                    })
+                                  : item.rate.toLocaleString("en-US", {
+                                      minimumFractionDigits: 4,
+                                      maximumFractionDigits: 4,
+                                    })
+                              }`
+                        }
+                        editable={false}
+                        multiline={false}
+                        scrollEnabled={false}
+                        style={[styles.amtContainer]}
+                      ></TextInput>
+                    </ScrollView>
+
+                    <PrimaryBtn
+                      iconName="close-sharp"
+                      iconColor="black"
+                      iconSize={22}
+                      onPress={() =>
+                        setCheckedList((prev) =>
+                          prev.filter((itm) => itm.currency !== item.currency)
+                        )
+                      }
+                      containerStyle={{ paddingRight: 10, paddingVertical: 10 }}
+                    />
+                  </View>
+                  {index !== convertedList.length - 1 && <Divider />}
+                </View>
+              );
+            }}
+            keyExtractor={(item) => item.currency}
+            contentContainerStyle={{ marginBottom: 10 }}
+            style={{ maxHeight: screenHeight - 440 }}
           />
-        )}
 
-        {checkedList?.length > 0 && <Text>Last Updated {lastUpdated}</Text>}
-      </View>
+          {isFocus && (
+            <BottomModal
+              isFocus={isFocus}
+              setIsFocus={setIsFocus}
+              data={currencyList}
+              checkedList={checkedList}
+              setCheckedList={setCheckedList}
+            />
+          )}
+
+          {checkedList?.length > 0 && <Text>Last Updated {lastUpdated}</Text>}
+        </View>
+      </Pressable>
     </SafeAreaView>
   );
 }
@@ -281,9 +289,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 10,
     justifyContent: "space-between",
-    paddingBottom: 8,
-    borderBottomColor: "#DCDCDC",
-    borderBottomWidth: 1,
+    paddingBottom: 5,
   },
   titleText: {
     fontSize: 25,
@@ -309,17 +315,14 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingVertical: 4,
-    // paddingHorizontal: 12,
     gap: 15,
   },
   amtContainer: {
     paddingVertical: 12,
     paddingHorizontal: 12,
-    backgroundColor: "rgba(236, 236, 240, 0.5)",
     borderRadius: 8,
-    // color: "#111827",
     fontSize: 18,
-    // width: 200,
+    overflowX: "visible",
     flex: 1,
   },
   currencyContainer: {
@@ -327,12 +330,10 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingVertical: 12,
     paddingHorizontal: 12,
-    // backgroundColor: "#ececf0",
-    backgroundColor: "rgba(236, 236, 240, 0.5)",
     borderRadius: 8,
     color: "#111827",
     fontSize: 18,
-    width: 100,
+    width: 90,
   },
   currencyText: {
     color: "#111827",
@@ -345,7 +346,7 @@ const styles = StyleSheet.create({
     shadowColor: "rgba(59,130,246,0.5)",
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 1,
-    shadowRadius: 3, // simulate a 3px ring
+    shadowRadius: 3,
   },
   disableText: {
     backgroundColor: "rgba(236, 236, 240, 0.5)",
@@ -359,6 +360,16 @@ const styles = StyleSheet.create({
     borderColor: "rgba(0, 0, 0, 0.1)",
     textAlign: "center",
   },
+  secondaryBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    borderColor: "#DCDCDC",
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+  },
   resetText: {
     color: "#FFFFFF",
     fontSize: 16,
@@ -370,5 +381,20 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     justifyContent: "center",
     padding: 8,
+    flexDirection: "row",
+    gap: 3,
+  },
+  greyBg: {
+    backgroundColor: "rgba(236, 236, 240, 0.5)",
+  },
+  noResultContainer: {
+    display: "flex",
+    alignItems: "center",
+    padding: 12,
+  },
+  currencyItemContainer: {
+    backgroundColor: "rgba(236, 236, 240, 0.5)",
+    marginVertical: 10,
+    borderRadius: 8,
   },
 });

@@ -3,6 +3,7 @@ import { CurrencyRate } from "@/app/(tabs)/HomeScreen";
 const token = process.env.EXPO_PUBLIC_EXCHANGERATE_TOKEN;
 
 export const getAllRating = async () => {
+   
     let url = `https://v6.exchangerate-api.com/v6/${token}/latest/MYR`;
     try {
       const response = await fetch(url, { method: "GET" });

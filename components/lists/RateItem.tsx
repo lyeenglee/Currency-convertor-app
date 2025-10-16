@@ -1,5 +1,6 @@
 import getUnicodeFlagIcon from "country-flag-icons/unicode";
 import { Checkbox } from "expo-checkbox";
+import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 type ItemProps = {
@@ -10,7 +11,7 @@ type ItemProps = {
   onChange: (val: string) => void;
 };
 
-export default function RateItem({
+function RateItem({
   currency,
   rate,
   isChecked,
@@ -35,6 +36,8 @@ export default function RateItem({
     </Pressable>
   );
 }
+
+export default RateItem;
 
 const styles = StyleSheet.create({
   dropDownItem: {

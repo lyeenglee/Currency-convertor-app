@@ -5,7 +5,7 @@ import { getAllRating } from "@/services/currencyService";
 import { mapCurrencyToCountry } from "@/utils/currencyMapper";
 import getUnicodeFlagIcon from "country-flag-icons/unicode";
 import getSymbolFromCurrency from "currency-symbol-map";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Dimensions,
   FlatList,
@@ -35,20 +35,16 @@ export default function HomeScreen() {
 
   const [isFocus, setIsFocus] = useState<boolean>(false);
   const [newRate, setNewRate] = useState<string>("");
-  const [currencyList, setCurrencyList] = useState<CurrencyRate[]>([]);
+  const [currencyList, setCurrencyList] = useState<CurrencyRate[]>([]); //after paginate
+  const [allCurrencyList, setAllCurrnecyList] = useState<CurrencyRate[]>([]);
   const [convertedList, setConvertedList] = useState<CurrencyRate[]>([]);
   const [checkedList, setCheckedList] = useState<CheckedRate[]>([]);
   const [amt, setAmt] = useState<string>("");
   const [lastUpdated, setLastUpdated] = useState<string>("");
-
-  const fetchCurrencyRates = async () => {
-    const res = await getAllRating();
-    if (res) {
-      const { filteredCurrencyList, formattedLastUpdated } = res;
-      setCurrencyList(filteredCurrencyList);
-      setLastUpdated(formattedLastUpdated);
-    }
-  };
+  const PAGE_SIZE = 25;
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
 
   useEffect(() => {
     handleNewRate(amt);
@@ -56,6 +52,43 @@ export default function HomeScreen() {
 
   useEffect(() => {
     fetchCurrencyRates();
+  }, []);
+
+  useEffect(() => {
+    if (page === 1 || !hasMore) {
+      return;
+    }
+  }, [page]);
+
+  const handleLoadMore = () => {
+    if (loading || !hasMore) return;
+    const nextPage = page + 1;
+
+    if (currencyList.length >= allCurrencyList.length) {
+      setHasMore(false);
+      setLoading(false);
+      return;
+    }
+    const newData = allCurrencyList.slice(
+      PAGE_SIZE * (page - 1),
+      PAGE_SIZE * page
+    );
+    setCurrencyList((prev) => [...prev, ...newData]);
+
+    setPage(nextPage);
+  };
+
+  const fetchCurrencyRates = useCallback(async (page = 1) => {
+    setLoading(true);
+    const res = await getAllRating();
+    if (res) {
+      const { filteredCurrencyList, formattedLastUpdated } = res;
+      setAllCurrnecyList(filteredCurrencyList);
+
+      setLastUpdated(formattedLastUpdated);
+    }
+
+    setLoading(false);
   }, []);
 
   const handleNewRate = (amt: string) => {
@@ -109,7 +142,6 @@ export default function HomeScreen() {
                   MYR
                 </Text>
 
-                {/* TOdo: add focus effect */}
                 <TextInput
                   keyboardType="numeric"
                   onChangeText={(text) => {
@@ -173,7 +205,8 @@ export default function HomeScreen() {
               <Text style={styles.subtitleText}>Converted Amounts</Text>
               <Text style={[styles.subtitleText, { color: "grey" }]}>
                 {Number(amt).toLocaleString("en-US", {
-                  maximumFractionDigits: 0,
+                  maximumFractionDigits: 2,
+                  minimumFractionDigits: 2,
                 })}{" "}
                 MYR equals
               </Text>
@@ -262,6 +295,8 @@ export default function HomeScreen() {
               data={currencyList}
               checkedList={checkedList}
               setCheckedList={setCheckedList}
+              handleLoadMore={handleLoadMore}
+              loading={loading}
             />
           )}
 

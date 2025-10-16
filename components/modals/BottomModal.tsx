@@ -1,11 +1,14 @@
 import { CheckedRate, CurrencyRate } from "@/app/(tabs)/HomeScreen";
 import { mapCurrencyToCountry } from "@/utils/currencyMapper";
+import { useState } from "react";
 import {
+  ActivityIndicator,
   FlatList,
   Modal,
   Pressable,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import {
@@ -19,8 +22,10 @@ type ModalProps = {
   isFocus: boolean;
   data: CurrencyRate[];
   checkedList: CheckedRate[];
+  loading: boolean;
   setIsFocus: React.Dispatch<React.SetStateAction<boolean>>;
   setCheckedList: React.Dispatch<React.SetStateAction<CheckedRate[]>>;
+  handleLoadMore: () => void;
 };
 
 export default function BottomModal({
@@ -28,10 +33,14 @@ export default function BottomModal({
   setIsFocus,
   data,
   checkedList,
+  loading,
   setCheckedList,
+  handleLoadMore,
 }: ModalProps) {
   const insets = useSafeAreaInsets();
 
+  const [typingEffect, setTypingEffect] = useState<boolean>(false);
+  const [search, setSearch] = useState<string>("");
   const onSelectCurrency = (currency: string) => {
     const existing = checkedList.some((item) => item.currency === currency);
     setCheckedList((prev) =>
@@ -83,8 +92,34 @@ export default function BottomModal({
             />
           </View>
           <View>
+            <Pressable
+              style={[styles.searchBox, typingEffect && styles.focusStyle]}
+              // onPress={() => setTypingEffect(!typingEffect)}
+            >
+              <TextInput
+                placeholderTextColor={"grey"}
+                placeholder="Search.."
+                value={search}
+                onChangeText={(text) => setSearch(text)}
+                // onFocus={() => setTypingEffect(true)}
+                // onBlur={() => setTypingEffect(false)}
+              />
+              <PrimaryBtn
+                iconName="search"
+                iconColor="grey"
+                iconSize={18}
+                onPress={() => setIsFocus(false)}
+              />
+            </Pressable>
+
             <FlatList
-              data={data}
+              data={
+                search
+                  ? data.filter((itm) =>
+                      itm.currency.includes(search.toLocaleUpperCase())
+                    )
+                  : data
+              }
               renderItem={({ item, index }) => {
                 const isChecked = checkedList.some(
                   (checked) => item.currency === checked.currency
@@ -105,8 +140,15 @@ export default function BottomModal({
                   />
                 );
               }}
-              keyExtractor={(item) => item.currency}
+              keyExtractor={(item, index) => `${item.currency}-${index}`} //fix duplicate currency key
               contentContainerStyle={{ paddingBottom: 45 + insets.bottom }}
+              onEndReached={handleLoadMore}
+              onEndReachedThreshold={0.2} // triggers 20% before end
+              ListFooterComponent={
+                loading ? (
+                  <ActivityIndicator style={{ marginVertical: 20 }} />
+                ) : null
+              }
             />
           </View>
         </View>
@@ -149,5 +191,22 @@ const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0,0,0,0.4)",
+  },
+  searchBox: {
+    padding: 12,
+    marginHorizontal: 12,
+    marginBottom: 5,
+    borderColor: "grey",
+    borderWidth: 1,
+    borderRadius: 10,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  searchPlaceholder: {
+    color: "grey",
+  },
+  focusStyle: {
+    borderColor: "black",
   },
 });

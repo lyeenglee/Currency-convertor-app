@@ -5,7 +5,7 @@ import { getAllRating } from "@/services/currencyService";
 import { mapCurrencyToCountry } from "@/utils/currencyMapper";
 import getUnicodeFlagIcon from "country-flag-icons/unicode";
 import getSymbolFromCurrency from "currency-symbol-map";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Dimensions,
   FlatList,
@@ -78,7 +78,7 @@ export default function HomeScreen() {
     setPage(nextPage);
   };
 
-  const fetchCurrencyRates = useCallback(async (page = 1) => {
+  const fetchCurrencyRates = async (page = 1) => {
     setLoading(true);
     const res = await getAllRating();
     if (res) {
@@ -89,7 +89,7 @@ export default function HomeScreen() {
     }
 
     setLoading(false);
-  }, []);
+  };
 
   const handleNewRate = (amt: string) => {
     if (checkedList?.length > 0) {

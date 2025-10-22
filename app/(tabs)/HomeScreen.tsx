@@ -232,7 +232,7 @@ export default function HomeScreen() {
                   >
                     <Pressable style={[styles.currencyContainer]}>
                       <Text style={styles.currencyText}>
-                        {getUnicodeFlagIcon(selected)}
+                        {selected ? getUnicodeFlagIcon(selected) : "🏳️"}
                       </Text>
 
                       <Text style={styles.currencyText}>{item.currency}</Text>

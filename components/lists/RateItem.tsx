@@ -27,7 +27,9 @@ function RateItem({
             onValueChange={() => onChange(currency)}
           />
 
-          <Text style={styles.title}>{getUnicodeFlagIcon(selected)}</Text>
+          <Text style={styles.title}>
+            {selected ? getUnicodeFlagIcon(selected) : "🏳️"}
+          </Text>
           <Text style={styles.title}>{currency}</Text>
         </View>
 
@@ -43,13 +45,13 @@ const styles = StyleSheet.create({
   dropDownItem: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingVertical: 10,
+    paddingVertical: 15,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
     borderBottomColor: "#C9CDCF",
   },
   title: {
-    fontSize: 16,
+    fontSize: 16.5,
   },
   leftItem: {
     flexDirection: "row",

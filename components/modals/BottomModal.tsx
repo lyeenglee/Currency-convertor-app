@@ -1,6 +1,6 @@
 import { CheckedRate, CurrencyRate } from "@/app/(tabs)/HomeScreen";
 import { mapCurrencyToCountry } from "@/utils/currencyMapper";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -38,7 +38,7 @@ export default function BottomModal({
   handleLoadMore,
 }: ModalProps) {
   const insets = useSafeAreaInsets();
-
+  const inputRef = useRef<TextInput>(null);
   const [typingEffect, setTypingEffect] = useState<boolean>(false);
   const [search, setSearch] = useState<string>("");
   const onSelectCurrency = (currency: string) => {
@@ -59,7 +59,7 @@ export default function BottomModal({
         setIsFocus(false);
       }}
     >
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { marginBottom: insets.bottom }]}>
         <Pressable onPress={() => setIsFocus(false)} style={styles.overlay} />
         <View style={styles.bottomSheet}>
           <View
@@ -94,21 +94,20 @@ export default function BottomModal({
           <View>
             <Pressable
               style={[styles.searchBox, typingEffect && styles.focusStyle]}
-              // onPress={() => setTypingEffect(!typingEffect)}
+              onPress={() => inputRef.current?.focus()}
             >
               <TextInput
+                ref={inputRef}
                 placeholderTextColor={"grey"}
                 placeholder="Search.."
                 value={search}
                 onChangeText={(text) => setSearch(text)}
-                // onFocus={() => setTypingEffect(true)}
-                // onBlur={() => setTypingEffect(false)}
               />
               <PrimaryBtn
                 iconName="search"
                 iconColor="grey"
                 iconSize={18}
-                onPress={() => setIsFocus(false)}
+                onPress={() => inputRef.current?.blur()}
               />
             </Pressable>
 
@@ -116,7 +115,7 @@ export default function BottomModal({
               data={
                 search
                   ? data.filter((itm) =>
-                      itm.currency.includes(search.toLocaleUpperCase())
+                      itm?.currency?.includes(search?.toLocaleUpperCase())
                     )
                   : data
               }
@@ -141,7 +140,7 @@ export default function BottomModal({
                 );
               }}
               keyExtractor={(item, index) => `${item.currency}-${index}`} //fix duplicate currency key
-              contentContainerStyle={{ paddingBottom: 45 + insets.bottom }}
+              contentContainerStyle={{ paddingBottom: 60 + insets.bottom }}
               onEndReached={handleLoadMore}
               onEndReachedThreshold={0.2} // triggers 20% before end
               ListFooterComponent={
@@ -179,13 +178,14 @@ const styles = StyleSheet.create({
     height: "75%",
     backgroundColor: "#F0F0F0",
     borderRadius: 20,
+    borderBottomEndRadius: 0,
+    borderBottomLeftRadius: 0,
     borderWidth: 1,
     borderBottomWidth: 0,
     borderColor: "#DCDCDC",
     shadowColor: "grey",
     shadowOffset: { width: 2, height: -2 },
     shadowOpacity: 0.6,
-    shadowRadius: 10,
     elevation: 8,
   },
   overlay: {
@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
   searchBox: {
     padding: 12,
     marginHorizontal: 12,
-    marginBottom: 5,
+    marginBottom: 10,
     borderColor: "grey",
     borderWidth: 1,
     borderRadius: 10,

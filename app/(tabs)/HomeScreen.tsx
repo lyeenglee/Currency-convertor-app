@@ -3,6 +3,7 @@ import Divider from "@/components/common/Divider";
 import BottomModal from "@/components/modals/BottomModal";
 import { getAllRating } from "@/services/currencyService";
 import { mapCurrencyToCountry } from "@/utils/currencyMapper";
+import { Ionicons } from "@expo/vector-icons";
 import getUnicodeFlagIcon from "country-flag-icons/unicode";
 import getSymbolFromCurrency from "currency-symbol-map";
 import { useEffect, useState } from "react";
@@ -34,7 +35,8 @@ export default function HomeScreen() {
   const screenHeight = Dimensions.get("window").height;
 
   const [isFocus, setIsFocus] = useState<boolean>(false);
-  const [newRate, setNewRate] = useState<string>("");
+  const [isVisible, setIsvisible] = useState<boolean>(false);
+  const [baseRate, setBaseRate] = useState<string>("MYR");
   const [currencyList, setCurrencyList] = useState<CurrencyRate[]>([]); //after paginate
   const [allCurrencyList, setAllCurrnecyList] = useState<CurrencyRate[]>([]);
   const [convertedList, setConvertedList] = useState<CurrencyRate[]>([]);
@@ -47,8 +49,10 @@ export default function HomeScreen() {
   const [hasMore, setHasMore] = useState(true);
 
   useEffect(() => {
-    handleNewRate(amt);
-  }, [amt, checkedList]);
+    if (allCurrencyList?.length && checkedList?.length && amt) {
+      handleNewRate(amt);
+    }
+  }, [allCurrencyList, amt, checkedList]);
 
   useEffect(() => {
     fetchCurrencyRates();
@@ -60,8 +64,17 @@ export default function HomeScreen() {
     }
   }, [page]);
 
+  useEffect(() => {
+    const getRates = async () => {
+      await fetchCurrencyRates(1, baseRate);
+      handleNewRate(amt);
+    };
+    getRates();
+  }, [baseRate]);
+
   const handleLoadMore = () => {
     if (loading || !hasMore) return;
+
     const nextPage = page + 1;
 
     if (currencyList.length >= allCurrencyList.length) {
@@ -78,13 +91,17 @@ export default function HomeScreen() {
     setPage(nextPage);
   };
 
-  const fetchCurrencyRates = async (page = 1) => {
+  const fetchCurrencyRates = async (page = 1, baseRate = "MYR") => {
     setLoading(true);
-    const res = await getAllRating();
-    if (res) {
-      const { filteredCurrencyList, formattedLastUpdated } = res;
-      setAllCurrnecyList(filteredCurrencyList);
 
+    const res = await getAllRating(baseRate);
+    if (res) {
+      const { formattedCurrencyList, formattedLastUpdated } = res;
+
+      setAllCurrnecyList(formattedCurrencyList);
+      setCurrencyList(
+        formattedCurrencyList.slice(PAGE_SIZE * (page - 1), PAGE_SIZE * page)
+      );
       setLastUpdated(formattedLastUpdated);
     }
 
@@ -93,7 +110,7 @@ export default function HomeScreen() {
 
   const handleNewRate = (amt: string) => {
     if (checkedList?.length > 0) {
-      const selectedCurrencyList = currencyList?.filter((itm) =>
+      const selectedCurrencyList = allCurrencyList?.filter((itm) =>
         checkedList.some((checked) => checked.currency === itm.currency)
       );
 
@@ -110,7 +127,13 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1 }}>
-      <Pressable onPress={() => Keyboard.dismiss()}>
+      <Pressable
+        style={{ flex: 1 }}
+        onPress={() => {
+          Keyboard.dismiss();
+          setIsvisible(false);
+        }}
+      >
         <View style={styles.cardContainer}>
           <View style={styles.titleContainer}>
             <Text style={styles.titleText}>Currency Convertor</Text>
@@ -121,6 +144,7 @@ export default function HomeScreen() {
                 iconColor="#FFF"
                 iconSize={18}
                 onPress={() => {
+                  setBaseRate("MYR");
                   setAmt("");
                   setCheckedList([]);
                   setConvertedList([]);
@@ -135,12 +159,97 @@ export default function HomeScreen() {
             <View>
               <Text style={styles.subtitleText}>From</Text>
               <View style={styles.childContainer}>
-                <Text
-                  style={[styles.currencyContainer, styles.greyBg]}
-                  disabled
-                >
-                  MYR
-                </Text>
+                <View>
+                  <Pressable
+                    style={[
+                      isFocus && styles.currencyContainerFocused,
+                      styles.greyBg,
+                      {
+                        flexDirection: "row",
+                        padding: 12,
+                        borderRadius: 8,
+                        borderBottomLeftRadius: isVisible ? 0 : 8,
+                        borderBottomRightRadius: isVisible ? 0 : 8,
+                        gap: 8,
+                      },
+                    ]}
+                    onPress={() => setIsvisible(!isVisible)}
+                  >
+                    <Text style={styles.currencyText}>{baseRate}</Text>
+                    <Ionicons name="chevron-down" size={18} color={"grey"} />
+                  </Pressable>
+
+                  {isVisible && (
+                    <View
+                      style={[
+                        styles.dropDownList,
+                        styles.greyBg,
+                        {
+                          position: "absolute",
+                          zIndex: 100,
+                          overflowY: "scroll",
+                          maxHeight: 350,
+                          width: 120,
+                          backgroundColor: "rgba(236, 236, 240, 1)",
+                          // borderTopLeftRadius: 15,
+                          // borderTopRightRadius: 15,
+                          borderRadius: 15,
+                          paddingBottom: 10,
+                        },
+                      ]}
+                    >
+                      <FlatList
+                        data={allCurrencyList}
+                        renderItem={({ item }) => {
+                          const selected =
+                            mapCurrencyToCountry.find(
+                              (itm) => itm.currency === item.currency
+                            )?.country || "";
+                          return (
+                            <Pressable
+                              onPress={() => {
+                                setBaseRate(item.currency);
+                                setIsvisible(false);
+                              }}
+                            >
+                              <View
+                                style={[
+                                  styles.childContainer,
+                                  { marginHorizontal: 5, marginVertical: 5 },
+                                ]}
+                              >
+                                <Text style={styles.currencyText}>
+                                  {selected
+                                    ? getUnicodeFlagIcon(selected)
+                                    : "🏳️"}
+                                </Text>
+                                <Text style={styles.title}>
+                                  {item.currency}
+                                </Text>
+                                {item.currency === baseRate ? (
+                                  <Ionicons
+                                    name="radio-button-on"
+                                    size={18}
+                                    color={"grey"}
+                                  ></Ionicons>
+                                ) : (
+                                  <Ionicons
+                                    name="radio-button-off"
+                                    size={18}
+                                    color={"grey"}
+                                  ></Ionicons>
+                                )}
+                              </View>
+                            </Pressable>
+                          );
+                        }}
+                        keyExtractor={(item, index) =>
+                          `${item.currency}-${index}`
+                        }
+                      />
+                    </View>
+                  )}
+                </View>
 
                 <TextInput
                   keyboardType="numeric"
@@ -208,14 +317,14 @@ export default function HomeScreen() {
                   maximumFractionDigits: 2,
                   minimumFractionDigits: 2,
                 })}{" "}
-                MYR equals
+                {baseRate} equals
               </Text>
             </>
           )}
 
           <FlatList
             bounces={false}
-            data={convertedList}
+            data={convertedList.filter((itm) => itm.currency !== baseRate)}
             renderItem={({ item, index }) => {
               const selected =
                 mapCurrencyToCountry.find(
@@ -292,7 +401,8 @@ export default function HomeScreen() {
             <BottomModal
               isFocus={isFocus}
               setIsFocus={setIsFocus}
-              data={currencyList}
+              data={currencyList.filter((itm) => itm.currency !== baseRate)}
+              // data={allCurrencyList}
               checkedList={checkedList}
               setCheckedList={setCheckedList}
               handleLoadMore={handleLoadMore}
@@ -348,7 +458,7 @@ const styles = StyleSheet.create({
   childContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "flex-start",
     paddingVertical: 4,
     gap: 15,
   },
@@ -431,5 +541,11 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(236, 236, 240, 0.5)",
     marginVertical: 10,
     borderRadius: 8,
+  },
+  dropDownList: {
+    // backgroundColor:
+  },
+  title: {
+    fontSize: 16.5,
   },
 });
